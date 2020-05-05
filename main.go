@@ -54,6 +54,8 @@ type ReturnData struct {
 }
 
 func main() {
+	var conns = 0
+	var connections *int = &conns
 
 	ln, err := net.Listen("tcp", "localhost:1534")
 	if err != nil {
@@ -66,7 +68,7 @@ func main() {
 			fmt.Print(err)
 		}
 		fmt.Println(conn.RemoteAddr().String() + `: Connected`)
-		go handleConnection(conn)
+		go handleConnection(conn, connections)
 	}
 }
 
@@ -78,13 +80,13 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 		params[i] = v.Value
 	}
 	sql := nodeQuery.Sql
-	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) :\w+ (,|and|or|limit|\))`)
+	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) :\w+ (,|order|and|or|limit|\))`)
 
 	sql = re.ReplaceAllString(sql, "$1 ? $2")
 
 	if driver == "postgres" {
 
-		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) \? (,|and|or|limit|\))`)
+		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) \? (,|order|and|or|limit|\))`)
 		i := 0
 		sql = re.ReplaceAllStringFunc(sql, func(s string) string {
 			i++
@@ -221,8 +223,9 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 	wg.Done()
 }
 
-func handleConnection(conn net.Conn) {
-
+func handleConnection(conn net.Conn, connections *int) {
+	*connections = *connections + 1
+	fmt.Println(*connections, " Total connections")
 	var response [2048]byte
 	n, _ := conn.Read(response[0:])
 	s := string(response[0:n])
@@ -252,6 +255,8 @@ func handleConnection(conn net.Conn) {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+
 	conn.Write(y)
 	conn.Close()
+	*connections = *connections - 1
 }
