@@ -8,12 +8,14 @@ import (
 	_ "github.com/lib/pq"
 	"net"
 	"regexp"
+	"strings"
 	"sync"
 )
 
 type NodeQueries struct {
 	NodeQueries []*NodeQuery `json:"node_queries"`
 }
+
 type Dsn struct {
 	Driver   string `json:"driver"`
 	Host     string `json:"host"`
@@ -52,6 +54,7 @@ type ReturnData struct {
 }
 
 func main() {
+
 	ln, err := net.Listen("tcp", "localhost:1534")
 	if err != nil {
 		fmt.Print(err)
@@ -75,14 +78,19 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 		params[i] = v.Value
 	}
 	sql := nodeQuery.Sql
+	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) :\w+ (,|and|or|limit|\))`)
+
+	sql = re.ReplaceAllString(sql, "$1 ? $2")
+
 	if driver == "postgres" {
-		var re = regexp.MustCompile(` \? `)
+
+		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) \? (,|and|or|limit|\))`)
 		i := 0
 		sql = re.ReplaceAllStringFunc(sql, func(s string) string {
 			i++
-
-			string := fmt.Sprintf(" $%d ", i)
-			return string
+			qmark := fmt.Sprintf("$%d", i)
+			s = strings.Replace(s, "?", qmark, -1)
+			return s
 		})
 	}
 	return db.Query(sql, params...)
