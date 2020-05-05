@@ -1,14 +1,13 @@
 package main
 
 import (
-"database/sql"
-"encoding/json"
-"fmt"
-_ "github.com/go-sql-driver/mysql"
-"github.com/lib/pq"
-_ "github.com/lib/pq"
-"net"
-"sync"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/lib/pq"
+	"net"
+	"sync"
 )
 
 type NodeQueries struct {
@@ -69,7 +68,9 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 
 	finalRows := []interface{}{}
 	nodeDsn := nodeQuery.Node.Dsn
-	dsn := nodeDsn.User + ":" + nodeDsn.Password + "@(" + nodeDsn.Host + ":" + nodeDsn.Port + ")/" + nodeDsn.Dbname
+	dsn := nodeDsn.User + ":" + nodeDsn.Password +
+		"@(" + nodeDsn.Host + ":" + nodeDsn.Port +
+		")/" + nodeDsn.Dbname
 	db, err := sql.Open(nodeDsn.Driver, dsn)
 
 	if err != nil {
@@ -208,6 +209,3 @@ func handleConnection(conn net.Conn) {
 	conn.Write(y)
 	conn.Close()
 }
-
-
-
