@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/lib/pq"
 	"net"
 	"sync"
 )
@@ -64,6 +63,19 @@ func main() {
 	}
 }
 
+func queryBinds(db *sql.DB, nodeQuery *NodeQuery) (*sql.Rows, error) {
+
+	params := make([]interface{}, len(nodeQuery.Binds))
+
+	for i, v := range nodeQuery.Binds {
+		params[i] = v.Value
+	}
+
+	return db.Query(nodeQuery.Sql,
+		params...)
+
+}
+
 func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 
 	finalRows := []interface{}{}
@@ -78,20 +90,7 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 	}
 	defer db.Close()
 
-	bindCount := len(nodeQuery.Binds)
-	params := make([]interface{}, bindCount)
-	for i, v := range nodeQuery.Binds {
-		params[i] = string(v.Value)
-		fmt.Println("DID SHIT" + v.Value)
-	}
-	//m := []string{"2020-04-23 11:58:10", "2020-04-21 11:58:10"}
-	fmt.Printf("%v", params)
-
-	params2 := make([]interface{}, 2)
-	params2[0] = "2020-04-23 11:58:10"
-	params2[1] = "2020-04-23 11:58:10"
-
-	rows, err := db.Query(nodeQuery.Sql, pq.Array(params2))
+	rows, err := queryBinds(db, nodeQuery)
 	if err != nil {
 		fmt.Println(err.Error())
 		wg.Done()
