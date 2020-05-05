@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"net"
+	"regexp"
 	"sync"
 )
 
@@ -33,6 +35,7 @@ type NodeQuery struct {
 	Sql             string       `json:"sql"`
 	Binds           []BindString `json:"binds"`
 	JsonReturnBytes []interface{}
+	Error           string
 }
 type BindString struct {
 	Value string `json:"value"`
@@ -45,6 +48,7 @@ type ReturnDataNodes struct {
 type ReturnData struct {
 	NodeName string        `json:"node_name""`
 	Data     []interface{} `json:"data"`
+	Error    string        `json:"error"`
 }
 
 func main() {
@@ -63,16 +67,25 @@ func main() {
 	}
 }
 
-func queryBinds(db *sql.DB, nodeQuery *NodeQuery) (*sql.Rows, error) {
+func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, error) {
 
 	params := make([]interface{}, len(nodeQuery.Binds))
 
 	for i, v := range nodeQuery.Binds {
 		params[i] = v.Value
 	}
+	sql := nodeQuery.Sql
+	if driver == "postgres" {
+		var re = regexp.MustCompile(` \? `)
+		i := 0
+		sql = re.ReplaceAllStringFunc(sql, func(s string) string {
+			i++
 
-	return db.Query(nodeQuery.Sql,
-		params...)
+			string := fmt.Sprintf(" $%d ", i)
+			return string
+		})
+	}
+	return db.Query(sql, params...)
 
 }
 
@@ -80,19 +93,42 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 
 	finalRows := []interface{}{}
 	nodeDsn := nodeQuery.Node.Dsn
-	dsn := nodeDsn.User + ":" + nodeDsn.Password +
-		"@(" + nodeDsn.Host + ":" + nodeDsn.Port +
-		")/" + nodeDsn.Dbname
-	db, err := sql.Open(nodeDsn.Driver, dsn)
+	driver := ""
+	dsn := ""
+	switch nodeDsn.Driver {
+	case "mysql":
+		driver = "mysql"
+		dsn = nodeDsn.User + ":" + nodeDsn.Password +
+			"@(" + nodeDsn.Host + ":" + nodeDsn.Port +
+			")/" + nodeDsn.Dbname
+	case "pgsql", "postgres":
+		driver = "postgres"
+		dsn = fmt.Sprintf("host=%s port=%s user=%s "+
+			"password=%s dbname=%s sslmode=disable",
+			nodeDsn.Host,
+			nodeDsn.Port,
+			nodeDsn.User,
+			nodeDsn.Password,
+			nodeDsn.Dbname)
+	}
+	if driver == "" {
+		fmt.Println("No Sql Driver")
+		nodeQuery.Error = "No Sql Driver"
+		wg.Done()
+		return
+	}
+
+	db, err := sql.Open(driver, dsn)
 
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
 
-	rows, err := queryBinds(db, nodeQuery)
+	rows, err := runNodeQuery(db, nodeQuery, driver)
 	if err != nil {
 		fmt.Println(err.Error())
+		nodeQuery.Error = err.Error()
 		wg.Done()
 		return
 	}
@@ -100,6 +136,7 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 
 	if err != nil {
 		fmt.Println(err.Error())
+		nodeQuery.Error = err.Error()
 		wg.Done()
 		return
 	}
@@ -192,13 +229,15 @@ func handleConnection(conn net.Conn) {
 
 	}
 	wg.Wait()
-	fmt.Println("Done")
+	fmt.Println(conn.RemoteAddr().String() + " Done")
+
 	data := ReturnDataNodes{}
 
 	for _, nodeQuery := range nq.NodeQueries {
 		data.Nodes = append(data.Nodes, ReturnData{
 			NodeName: nodeQuery.Node.Name,
 			Data:     nodeQuery.JsonReturnBytes,
+			Error:    nodeQuery.Error,
 		})
 	}
 	y, err := json.Marshal(data)
