@@ -80,13 +80,13 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 		params[i] = v.Value
 	}
 	sql := nodeQuery.Sql
-	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) :\w+ (,|order|and|or|limit|\))`)
+	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=) :\w+ (,|order|and|or|limit|\))`)
 
 	sql = re.ReplaceAllString(sql, "$1 ? $2")
 
 	if driver == "postgres" {
 
-		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^) \? (,|order|and|or|limit|\))`)
+		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=) \? (,|order|and|or|limit|\))`)
 		i := 0
 		sql = re.ReplaceAllStringFunc(sql, func(s string) string {
 			i++
@@ -95,6 +95,9 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 			return s
 		})
 	}
+	fmt.Println("QUERY=")
+	f := fmt.Sprintf("%v", params)
+	fmt.Println(sql + f)
 	return db.Query(sql, params...)
 
 }
@@ -139,6 +142,7 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 	if err != nil {
 		fmt.Println(err.Error())
 		nodeQuery.Error = err.Error()
+		db.Close()
 		wg.Done()
 		return
 	}
@@ -147,6 +151,7 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 	if err != nil {
 		fmt.Println(err.Error())
 		nodeQuery.Error = err.Error()
+		db.Close()
 		wg.Done()
 		return
 	}
@@ -178,6 +183,7 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 
 		if err != nil {
 			fmt.Println(err.Error())
+			db.Close()
 			wg.Done()
 			return
 		}
@@ -217,7 +223,8 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 		finalRows = append(finalRows, masterData)
 	}
 	db.Close()
-
+	results := fmt.Sprintf("%d Results", len(finalRows))
+	fmt.Println(results)
 	nodeQuery.JsonReturnBytes = finalRows
 
 	wg.Done()
@@ -226,13 +233,15 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 func handleConnection(conn net.Conn, connections *int) {
 	*connections = *connections + 1
 	fmt.Println(*connections, " Total connections")
-	var response [2048]byte
+	var response [204800]byte
 	n, _ := conn.Read(response[0:])
+	fmt.Println(n)
 	s := string(response[0:n])
 
 	var nq NodeQueries
 
 	json.Unmarshal([]byte(s), &nq)
+	fmt.Println(s)
 	var wg sync.WaitGroup
 	for _, nodeQuery := range nq.NodeQueries {
 		wg.Add(1)
