@@ -7,6 +7,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"net"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -14,6 +15,12 @@ import (
 
 type NodeQueries struct {
 	NodeQueries []*NodeQuery `json:"node_queries"`
+	Auth        Auth         `json:"auth"`
+}
+
+type Auth struct {
+	User string `json:"username"`
+	Pass string `json:"password"`
 }
 
 type Dsn struct {
@@ -48,16 +55,44 @@ type ReturnDataNodes struct {
 }
 
 type ReturnData struct {
-	NodeName string        `json:"node_name""`
+	NodeName string        `json:"node_name"`
 	Data     []interface{} `json:"data"`
 	Error    string        `json:"error"`
 }
 
-func main() {
-	var conns = 0
-	var connections *int = &conns
+var username string
+var password string
+var conns int
+var connections *int
+var debug bool = false
 
-	ln, err := net.Listen("tcp", "localhost:1534")
+func main() {
+	dbug := os.Getenv("GOTHREAD_DEBUG")
+	if dbug != "" {
+		debug = true
+	}
+	user := os.Getenv("GOTHREAD_USER")
+	if user == "" {
+		user = "gothread"
+	}
+	pass := os.Getenv("GOTHREAD_PASS")
+	if pass == "" {
+		pass = "password"
+	}
+	host := os.Getenv("GOTHREAD_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	port := os.Getenv("GOTHREAD_PORT")
+	if port == "" {
+		port = "1534"
+	}
+	username = user
+	password = pass
+	conns = 0
+	connections = &conns
+
+	ln, err := net.Listen("tcp", host+":"+port)
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -67,6 +102,7 @@ func main() {
 		if err != nil {
 			fmt.Print(err)
 		}
+
 		fmt.Println(conn.RemoteAddr().String() + `: Connected`)
 		go handleConnection(conn, connections)
 	}
@@ -95,11 +131,66 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 			return s
 		})
 	}
-	fmt.Println("QUERY=")
-	f := fmt.Sprintf("%v", params)
-	fmt.Println(sql + f)
+	if debug {
+		fmt.Println("QUERY=")
+		f := fmt.Sprintf("%v", params)
+		fmt.Println(sql + f)
+	}
 	return db.Query(sql, params...)
 
+}
+
+func handleConnection(conn net.Conn, connections *int) {
+	*connections = *connections + 1
+	fmt.Println(*connections, " Total connections")
+
+	var response [409600]byte
+	n, _ := conn.Read(response[0:])
+	s := string(response[0:n])
+
+	var nq NodeQueries
+
+	json.Unmarshal([]byte(s), &nq)
+	if debug {
+		fmt.Println(s)
+	}
+
+	data := ReturnDataNodes{}
+	if nq.Auth.User != username || nq.Auth.Pass != password {
+		fmt.Println(conn.RemoteAddr().String() + " Auth Failed!")
+		for _, nodeQuery := range nq.NodeQueries {
+			data.Nodes = append(data.Nodes, ReturnData{
+				NodeName: nodeQuery.Node.Name,
+				Data:     nodeQuery.JsonReturnBytes,
+				Error:    "Failed GoThread Auth",
+			})
+		}
+
+	} else {
+		var wg sync.WaitGroup
+		for _, nodeQuery := range nq.NodeQueries {
+			wg.Add(1)
+			go runQuery(&wg, nodeQuery)
+
+		}
+		wg.Wait()
+		fmt.Println(conn.RemoteAddr().String() + " Done")
+
+		for _, nodeQuery := range nq.NodeQueries {
+			data.Nodes = append(data.Nodes, ReturnData{
+				NodeName: nodeQuery.Node.Name,
+				Data:     nodeQuery.JsonReturnBytes,
+				Error:    nodeQuery.Error,
+			})
+		}
+
+	}
+	y, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	conn.Write(y)
+	close(conn)
 }
 
 func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
@@ -223,49 +314,16 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 		finalRows = append(finalRows, masterData)
 	}
 	db.Close()
-	results := fmt.Sprintf("%d Results", len(finalRows))
-	fmt.Println(results)
+	if debug {
+		results := fmt.Sprintf("%d Results", len(finalRows))
+		fmt.Println(nodeQuery.Node.Name + ": " + results)
+	}
 	nodeQuery.JsonReturnBytes = finalRows
 
 	wg.Done()
 }
 
-func handleConnection(conn net.Conn, connections *int) {
-	*connections = *connections + 1
-	fmt.Println(*connections, " Total connections")
-	var response [204800]byte
-	n, _ := conn.Read(response[0:])
-	fmt.Println(n)
-	s := string(response[0:n])
-
-	var nq NodeQueries
-
-	json.Unmarshal([]byte(s), &nq)
-	fmt.Println(s)
-	var wg sync.WaitGroup
-	for _, nodeQuery := range nq.NodeQueries {
-		wg.Add(1)
-		go runQuery(&wg, nodeQuery)
-
-	}
-	wg.Wait()
-	fmt.Println(conn.RemoteAddr().String() + " Done")
-
-	data := ReturnDataNodes{}
-
-	for _, nodeQuery := range nq.NodeQueries {
-		data.Nodes = append(data.Nodes, ReturnData{
-			NodeName: nodeQuery.Node.Name,
-			Data:     nodeQuery.JsonReturnBytes,
-			Error:    nodeQuery.Error,
-		})
-	}
-	y, err := json.Marshal(data)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	conn.Write(y)
+func close(conn net.Conn) {
 	conn.Close()
 	*connections = *connections - 1
 }
