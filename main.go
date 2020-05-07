@@ -67,23 +67,23 @@ var connections *int
 var debug bool = false
 
 func main() {
-	dbug := os.Getenv("GOTHREAD_DEBUG")
+	dbug := os.Getenv("GOTHREADED_DEBUG")
 	if dbug != "" {
 		debug = true
 	}
-	user := os.Getenv("GOTHREAD_USER")
+	user := os.Getenv("GOTHREADED_USER")
 	if user == "" {
-		user = "gothread"
+		user = "gothreaded"
 	}
-	pass := os.Getenv("GOTHREAD_PASS")
+	pass := os.Getenv("GOTHREADED_PASS")
 	if pass == "" {
 		pass = "password"
 	}
-	host := os.Getenv("GOTHREAD_HOST")
+	host := os.Getenv("GOTHREADED_HOST")
 	if host == "" {
 		host = "localhost"
 	}
-	port := os.Getenv("GOTHREAD_PORT")
+	port := os.Getenv("GOTHREADED_PORT")
 	if port == "" {
 		port = "1534"
 	}
