@@ -1,0 +1,9 @@
+version: "3.5"
+
+services:
+  threaded:
+    image: jrsaunders/gothreaded
+    environment:
+      GOTHREADED_DEBUG: "true"
+    ports:
+      - 1534:1534
