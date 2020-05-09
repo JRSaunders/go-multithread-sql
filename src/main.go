@@ -225,7 +225,7 @@ func runQuery(wg *sync.WaitGroup, nodeQuery *NodeQuery) {
 		driver = "mysql"
 		dsn = nodeDsn.User + ":" + nodeDsn.Password +
 			"@(" + host + ":" + port +
-			")/" + nodeDsn.Dbname
+			")/" + nodeDsn.Dbname + "?charset=" + nodeDsn.CharSet
 	case "pgsql", "postgres":
 		driver = "postgres"
 		dsn = fmt.Sprintf("host=%s port=%s user=%s "+
