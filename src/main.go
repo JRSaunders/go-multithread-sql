@@ -79,7 +79,7 @@ func main() {
 		fmt.Println("Debug mode!")
 		debug = true
 	}
-	dcker := os.Getenv("GOTHREADED_DEBUG")
+	dcker := os.Getenv("GOTHREADED_DOCKER")
 	if dcker != "" {
 		fmt.Println("Running in Docker container")
 		docker = true
@@ -127,13 +127,13 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 		params[i] = v.Value
 	}
 	sql := nodeQuery.Sql
-	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=|in \(|,) :\w+ (,|order|and|or|limit|\))`)
+	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=|in \(|,) :\w+ (,|order|and|or|limit|\))|( |\():\w+(,|\))`)
 
 	sql = re.ReplaceAllString(sql, "$1 ? $2")
 
 	if driver == "postgres" {
 
-		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=) \? (,|order|and|or|limit|\))`)
+		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=) \? (,|order|and|or|limit|\))|( |\()\?(,|\))`)
 		i := 0
 		sql = re.ReplaceAllStringFunc(sql, func(s string) string {
 			i++
@@ -173,7 +173,7 @@ func handleConnection(conn net.Conn, connections *int) {
 			data.Nodes = append(data.Nodes, ReturnData{
 				NodeName: nodeQuery.Node.Name,
 				Data:     nodeQuery.JsonReturnBytes,
-				Error:    "Failed GoThread Auth",
+				Error:    "Failed GoThreaded Auth",
 			})
 		}
 
