@@ -127,13 +127,13 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 		params[i] = v.Value
 	}
 	sql := nodeQuery.Sql
-	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=|in \(|,) :\w+ (,|order|and|or|limit|\))|( |\():\w+(,|\))`)
+	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=|in \(|,) :\w+ (,|order|and|or|limit|\))|( |\():\w+(,|\))|( ):\w+($)`)
 
 	sql = re.ReplaceAllString(sql, "$1 ? $2")
 
 	if driver == "postgres" {
 
-		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=) \? (,|order|and|or|limit|\))|( |\()\?(,|\))`)
+		re = regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=|in \(|,) \? ( |,|order|and|or|limit|\))|( |\()\?(,|\))|( )\?($)`)
 		i := 0
 		sql = re.ReplaceAllStringFunc(sql, func(s string) string {
 			i++
