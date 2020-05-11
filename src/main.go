@@ -127,7 +127,7 @@ func runNodeQuery(db *sql.DB, nodeQuery *NodeQuery, driver string) (*sql.Rows, e
 		params[i] = v.Value
 	}
 	sql := nodeQuery.Sql
-	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=) :\w+ (,|order|and|or|limit|\))`)
+	re := regexp.MustCompile(`(<|and|>|>=|<=|like|between|^|=|in \(|,) :\w+ (,|order|and|or|limit|\))`)
 
 	sql = re.ReplaceAllString(sql, "$1 ? $2")
 
