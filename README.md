@@ -7,6 +7,20 @@
 * Username & Password protected access
 * Change Host and Ports that runs on
 
+### Docker Compose example
+```
+version: "3.5"
+
+services:
+  threaded:
+    image: jrsaunders/gothreaded
+    environment:
+      GOTHREADED_DEBUG: "true"
+    ports:
+      - 1534:1534
+```
+
+
 Default is to run on ::1534
 
 ### Environment Variables can be used to change these features:
