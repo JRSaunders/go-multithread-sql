@@ -7,8 +7,40 @@
 * Username & Password protected access
 * Change Host and Ports that runs on
 
+Default is to run on ::1534
 
-Example Query
+### Environment Variables can be used to change these features:
+
+* Debug mode
+```
+GOTHREADED_DEBUG=true
+```
+* Docker mode
+```
+GOTHREADED_DOCKER=true
+```
+* Set UserName
+```
+GOTHREADED_USER=myusernameforGoThreaded
+```
+* Set Password
+```
+GOTHREADED_PASS=mypasswordforGoThreaded
+```
+* Set Host
+if left blank will run from ip of machine
+```
+GOTHREADED_HOST=mydomain.com
+or
+GOTHREADED_HOST=1.45.123.1
+```
+* Set Port
+```
+GOTHREADED_PORT=1534
+```
+
+
+### Example Query
 ```json
 {
    "auth":{
