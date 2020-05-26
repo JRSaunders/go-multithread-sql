@@ -21,7 +21,7 @@ push:
 	docker push jrsaunders/gothreaded
 
 build-go:
-	cd src && env GOOS=linux GOARCH=arm go build -o ../gothreaded
+	cd src && env GOOS=linux GOARCH=arm64 go build -o ../gothreaded
 
 build-go-osx:
 	cd src && go build -o ../gothreaded-osx
