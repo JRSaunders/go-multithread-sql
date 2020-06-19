@@ -16,6 +16,7 @@ import (
 type NodeQueries struct {
 	NodeQueries []*NodeQuery `json:"node_queries"`
 	Auth        Auth         `json:"auth"`
+	Kill        int          `json:"kill" default0:"0"`
 }
 
 type Auth struct {
@@ -178,6 +179,10 @@ func handleConnection(conn net.Conn, connections *int) {
 		}
 
 	} else {
+		if nq.Kill > 0 {
+			fmt.Println("Killed!")
+			os.Exit(1)
+		}
 		var wg sync.WaitGroup
 		for _, nodeQuery := range nq.NodeQueries {
 			wg.Add(1)

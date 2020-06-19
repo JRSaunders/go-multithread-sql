@@ -368,3 +368,15 @@ Example Output
    ]
 }
 ```
+
+Kill Service
+
+```json
+{
+  "auth":{
+      "username":"gothreaded",
+      "password":"password"
+   },
+  "kill": 1
+}
+```
