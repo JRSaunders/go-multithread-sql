@@ -181,6 +181,7 @@ func handleConnection(conn net.Conn, connections *int) {
 	} else {
 		if nq.Kill > 0 {
 			fmt.Println("Killed!")
+			fmt.Println("1")
 			os.Exit(1)
 		}
 		var wg sync.WaitGroup
