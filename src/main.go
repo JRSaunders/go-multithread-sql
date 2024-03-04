@@ -156,7 +156,7 @@ func handleConnection(conn net.Conn, connections *int) {
 	*connections = *connections + 1
 	fmt.Println(*connections, " Total connections")
 
-	var response [4096000]byte
+	var response [8192000]byte
 	n, _ := conn.Read(response[0:])
 	s := string(response[0:n])
 
