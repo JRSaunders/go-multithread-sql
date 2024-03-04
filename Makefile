@@ -18,7 +18,7 @@ build:
 	&& docker tag jrsaunders/gothreaded:${TAG} jrsaunders/gothreaded:latest
 
 build-new:
-	docker build --platform amd64 -t jrsaunders/gothreaded:amd64 .
+	docker build -t jrsaunders/gothreaded:amd64-new .
 
 push:
 	docker push jrsaunders/gothreaded
